@@ -18,15 +18,22 @@
 #include <esp8266.h>
 #include <FreeRTOS.h>
 #include <task.h>
+#include <sysparam.h>
 
 #include <homekit/homekit.h>
 #include <homekit/characteristics.h>
 #include <wifi_config.h>
 
 
-const int led_gpio = 2;
+#define LIGHT_ON_PARAM "light_on"
+const int led_gpio = 4;
 
 void led_write(bool on) {
+    if(on) {
+        printf("LED ON\n");
+    } else {
+        printf("LED OFF\n");
+    }
     gpio_write(led_gpio, on ? 0 : 1);
 }
 
@@ -39,11 +46,13 @@ homekit_characteristic_t led_on = HOMEKIT_CHARACTERISTIC_(
 
 void led_init() {
     gpio_enable(led_gpio, GPIO_OUTPUT);
+    sysparam_get_bool(LIGHT_ON_PARAM, &led_on.value.bool_value);
     led_write(led_on.value.bool_value);
 }
 
 void led_on_callback(homekit_characteristic_t *_ch, homekit_value_t on, void *context) {
     led_write(led_on.value.bool_value);
+     sysparam_set_bool(LIGHT_ON_PARAM, led_on.value.bool_value);
 }
 
 void led_identify_task(void *_args) {
@@ -72,16 +81,16 @@ void led_identify(homekit_value_t _value) {
 homekit_accessory_t *accessories[] = {
     HOMEKIT_ACCESSORY(.id=1, .category=homekit_accessory_category_lightbulb, .services=(homekit_service_t*[]){
         HOMEKIT_SERVICE(ACCESSORY_INFORMATION, .characteristics=(homekit_characteristic_t*[]){
-            HOMEKIT_CHARACTERISTIC(NAME, "Sample LED"),
-            HOMEKIT_CHARACTERISTIC(MANUFACTURER, "HaPK"),
-            HOMEKIT_CHARACTERISTIC(SERIAL_NUMBER, "037A2BABF19D"),
-            HOMEKIT_CHARACTERISTIC(MODEL, "MyLED"),
+            HOMEKIT_CHARACTERISTIC(NAME, "Switch"),
+            HOMEKIT_CHARACTERISTIC(MANUFACTURER, "Mike Hernas"),
+            HOMEKIT_CHARACTERISTIC(SERIAL_NUMBER, "037A2BABF19E"),
+            HOMEKIT_CHARACTERISTIC(MODEL, "SmartO"),
             HOMEKIT_CHARACTERISTIC(FIRMWARE_REVISION, "0.1"),
             HOMEKIT_CHARACTERISTIC(IDENTIFY, led_identify),
             NULL
         }),
         HOMEKIT_SERVICE(LIGHTBULB, .primary=true, .characteristics=(homekit_characteristic_t*[]){
-            HOMEKIT_CHARACTERISTIC(NAME, "Sample LED"),
+            HOMEKIT_CHARACTERISTIC(NAME, "Hernas Switch"),
             &led_on,
             NULL
         }),
@@ -92,7 +101,8 @@ homekit_accessory_t *accessories[] = {
 
 homekit_server_config_t config = {
     .accessories = accessories,
-    .password = "111-11-111"
+    .password = "845-23-123",
+    .setupId="9ZJX"
 };
 
 void on_wifi_ready() {
@@ -102,6 +112,6 @@ void on_wifi_ready() {
 void user_init(void) {
     uart_set_baud(0, 115200);
 
-    wifi_config_init("my-accessory", NULL, on_wifi_ready);
+    wifi_config_init("HernasSwitch", NULL, on_wifi_ready);
     led_init();
 }
